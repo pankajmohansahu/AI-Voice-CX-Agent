@@ -1,13 +1,12 @@
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { env } from "@/lib/env";
+import { extractToolRecords, sanitizeHistory } from "@/lib/history";
 import { llm, reasoningOptions } from "@/lib/llm";
 import { buildSystemPrompt } from "@/lib/prompt";
 import { executeTool, TOOL_DEFINITIONS, type ToolContext } from "@/lib/tools";
 import type { ChatMessage, ChatStreamEvent } from "@/lib/types";
 
 const MAX_TOOL_ROUNDS = 5; // hard stop so a confused model can never loop forever
-const MAX_HISTORY = 40;
-const MAX_TEXT = 2000;
 
 const FALLBACK_REPLY = "Sorry, I didn't quite get that. Could you please say it again?";
 const ERROR_REPLY = "Sorry, I'm having a little trouble right now. Could you please try again in a moment?";
@@ -145,48 +144,12 @@ function parseArgs(raw: string): Record<string, unknown> {
   }
 }
 
-// Accept only user/assistant/tool messages from the client (never a "system" message),
-// cap lengths, and drop orphaned tool results left at the start after trimming.
-function sanitizeHistory(input: unknown): ChatMessage[] | null {
-  if (!Array.isArray(input)) return null;
-  const out: ChatMessage[] = [];
-  for (const m of input.slice(-MAX_HISTORY)) {
-    if (!m || typeof m !== "object") continue;
-    if (m.role === "user" && typeof m.content === "string") {
-      out.push({ role: "user", content: m.content.slice(0, MAX_TEXT) });
-    } else if (m.role === "assistant") {
-      const toolCalls = Array.isArray(m.tool_calls)
-        ? m.tool_calls
-            .filter((tc: { id?: unknown; function?: { name?: unknown } }) => typeof tc?.id === "string" && typeof tc?.function?.name === "string")
-            .map((tc: { id: string; function: { name: string; arguments?: unknown } }) => ({
-              id: tc.id,
-              type: "function" as const,
-              function: { name: tc.function.name, arguments: String(tc.function.arguments ?? "{}") },
-            }))
-        : undefined;
-      out.push({
-        role: "assistant",
-        content: typeof m.content === "string" ? m.content.slice(0, MAX_TEXT) : null,
-        ...(toolCalls?.length ? { tool_calls: toolCalls } : {}),
-      });
-    } else if (m.role === "tool" && typeof m.tool_call_id === "string" && typeof m.content === "string") {
-      out.push({ role: "tool", tool_call_id: m.tool_call_id, content: m.content.slice(0, MAX_TEXT) });
-    }
-  }
-  while (out[0]?.role === "tool") out.shift();
-  return out;
-}
-
 // The server keeps no state, so rebuild "orders cancelled in this call" from earlier tool results.
 function findCancelledOrders(history: ChatMessage[]): Set<string> {
   const ids = new Set<string>();
-  for (const m of history) {
-    if (m.role !== "tool") continue;
-    try {
-      const r = JSON.parse(m.content);
-      if (r?.success === true && r?.new_status === "Cancelled" && typeof r.order_id === "string") ids.add(r.order_id);
-    } catch {
-      // not JSON
+  for (const { name, result } of extractToolRecords(history)) {
+    if (name === "cancel_order" && result?.success === true && typeof result.order_id === "string") {
+      ids.add(result.order_id);
     }
   }
   return ids;

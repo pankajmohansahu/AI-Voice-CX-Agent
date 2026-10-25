@@ -26,6 +26,7 @@ const SCENARIOS = [
     tools: ["check_action_eligibility"],
     eligible: false,
     expect: [/7|seven|14|window/i],
+    summary: { intent: "RETURN_REQUEST", orderId: "ORD-102", actions: ["RETURN_DENIED"] },
     reject: [/return has been (approved|initiated)|refund (is|has been) (processed|initiated)/i],
   },
   {
@@ -35,6 +36,7 @@ const SCENARIOS = [
     followUp: { unless: "cancel_order", text: "Yes, please go ahead and cancel it" },
     tools: ["check_action_eligibility", "cancel_order"],
     expect: [/cancel/i, /CXL-\d{4}/],
+    summary: { intent: "CANCELLATION_REQUEST", orderId: "ORD-103", actions: ["ORDER_CANCELLED"] },
   },
   {
     name: "Cancel ORD-101 (not allowed)",
@@ -56,6 +58,7 @@ const SCENARIOS = [
     tools: [],
     expect: [/aura|skincare/i],
     reject: [/booked|here are (some )?flights/i],
+    summary: { intent: "OUT_OF_SCOPE", orderId: null, actions: [] },
   },
   {
     name: "Opened product, 20 days ago",
@@ -141,6 +144,27 @@ for (const [index, s] of selected.entries()) {
   }
   for (const re of s.expect ?? []) if (!re.test(allText)) problems.push(`reply missing ${re}`);
   for (const re of s.reject ?? []) if (re.test(allText)) problems.push(`reply must not match ${re}`);
+
+  // Post-call summary for this conversation.
+  if (s.summary) {
+    try {
+      const res = await fetch(`${BASE}/api/summary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: history }),
+      });
+      const { summary } = await res.json();
+      if (VERBOSE) console.log(`      summary: ${JSON.stringify(summary)}`);
+      if (summary?.customer_intent !== s.summary.intent)
+        problems.push(`summary intent ${summary?.customer_intent}, expected ${s.summary.intent}`);
+      if (summary?.order_id !== s.summary.orderId)
+        problems.push(`summary order_id ${summary?.order_id}, expected ${s.summary.orderId}`);
+      for (const a of s.summary.actions)
+        if (!summary?.actions_taken?.includes(a)) problems.push(`summary missing action ${a}`);
+    } catch (err) {
+      problems.push(`summary failed: ${err}`);
+    }
+  }
 
   const ok = problems.length === 0;
   if (ok) passed++;

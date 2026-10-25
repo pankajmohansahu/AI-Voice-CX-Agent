@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleAlert, CircleCheck, Download, LoaderCircle, MessageSquareText, Phone, User, Wrench } from "lucide-react";
+import { CircleAlert, CircleCheck, Download, LoaderCircle, MessageSquareText, Phone, RotateCcw, User, Wrench } from "lucide-react";
 import { AriaAvatar } from "./AriaAvatar";
 import { JsonViewer } from "./JsonViewer";
 import { downloadFile, formatDuration, toolCallLabel, transcriptToText } from "@/lib/format";
@@ -19,7 +19,15 @@ const SENTIMENT_LABEL: Record<CallSummary["sentiment"], string> = {
   NEGATIVE: "Negative 😟",
 };
 
-export function SummaryScreen({ view, onNewCall }: { view: CallView; onNewCall: () => void }) {
+export function SummaryScreen({
+  view,
+  onNewCall,
+  onRetrySummary,
+}: {
+  view: CallView;
+  onNewCall: () => void;
+  onRetrySummary: () => void;
+}) {
   const turns = view.entries.filter((e) => e.kind === "message" && e.role === "customer").length;
   const fileBase = `aria-call-${view.sessionId ?? "session"}`;
 
@@ -64,9 +72,17 @@ export function SummaryScreen({ view, onNewCall }: { view: CallView; onNewCall: 
             </div>
           )}
           {view.summary.status === "error" && (
-            <div className="flex items-start gap-3 rounded-3xl bg-white p-6 text-muted shadow-card">
-              <CircleAlert className="mt-0.5 size-5 shrink-0 text-think" aria-hidden />
-              {view.summary.message}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-white p-6 text-muted shadow-card">
+              <span className="flex items-start gap-3">
+                <CircleAlert className="mt-0.5 size-5 shrink-0 text-think" aria-hidden />
+                {view.summary.message}
+              </span>
+              <button
+                onClick={onRetrySummary}
+                className="flex items-center gap-1.5 rounded-full bg-sage-100 px-4 py-2 text-sm font-semibold text-sage-700 transition hover:bg-sage-200"
+              >
+                <RotateCcw className="size-4" aria-hidden /> Retry
+              </button>
             </div>
           )}
           {view.summary.status === "ready" && (

@@ -40,7 +40,7 @@ export function VoiceAgentApp() {
 
       <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 lg:px-10">
         {view.screen === "summary" ? (
-          <SummaryScreen view={view} onNewCall={call.newCall} />
+          <SummaryScreen view={view} onNewCall={call.newCall} onRetrySummary={call.retrySummary} />
         ) : (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
             <CallPanel

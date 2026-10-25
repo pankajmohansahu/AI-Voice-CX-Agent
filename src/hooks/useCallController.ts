@@ -11,8 +11,8 @@ function makeSessionId() {
 
 const CONNECTION_ERROR = "Sorry, I'm having trouble connecting right now. Could you please try again?";
 
-// Owns the call lifecycle, transcript and conversation with the agent.
-// Summary generation (Step C) and voice (Step D) plug in here.
+// Owns the call lifecycle, transcript, conversation with the agent and post-call summary.
+// Voice (Step D) plugs in here.
 export function useCallController() {
   const [screen, setScreen] = useState<CallView["screen"]>("call");
   const [state, setState] = useState<CallState>("idle");
@@ -160,6 +160,27 @@ export function useCallController() {
     }, 700);
   }, [beginSession]);
 
+  // Generate the structured outcome from the full conversation history.
+  const loadSummary = useCallback(async () => {
+    const callId = callIdRef.current;
+    setSummary({ status: "loading" });
+    try {
+      const res = await fetch("/api/summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: historyRef.current }),
+      });
+      const data = await res.json();
+      if (callIdRef.current !== callId) return;
+      if (!res.ok || !data.summary) throw new Error(data.error);
+      setSummary({ status: "ready", data: data.summary });
+    } catch {
+      if (callIdRef.current === callId) {
+        setSummary({ status: "error", message: "Couldn't generate the call summary. Please try again." });
+      }
+    }
+  }, []);
+
   const end = useCallback(() => {
     callIdRef.current += 1;
     abortRef.current?.abort();
@@ -167,9 +188,8 @@ export function useCallController() {
     setState("idle");
     setActivity(null);
     setScreen("summary");
-    // Placeholder until /api/summary is wired in (Step C).
-    setSummary({ status: "error", message: "Summary generation will be connected in the next step." });
-  }, []);
+    void loadSummary();
+  }, [loadSummary]);
 
   const sendText = useCallback(
     (text: string) => {
@@ -217,5 +237,5 @@ export function useCallController() {
     summary,
   };
 
-  return { view, start, end, sendText, newCall, toggleMute };
+  return { view, start, end, sendText, newCall, toggleMute, retrySummary: loadSummary };
 }
