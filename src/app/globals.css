@@ -1,26 +1,76 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* "Botanical Vitality" design tokens. */
+@theme {
+  --color-cream: #faf8f3;
+  --color-ink: #1f2421;
+  --color-muted: #4f5a54;
+
+  --color-sage-50: #f2f6f3;
+  --color-sage-100: #ebf2ed;
+  --color-sage-200: #d3e4d8;
+  --color-sage-300: #a2d2b0;
+  --color-sage-500: #3f6b4f;
+  --color-sage-600: #345b42;
+  --color-sage-700: #275338;
+
+  --color-terracotta-50: #f9ebe6;
+  --color-terracotta-500: #c9785b;
+  --color-terracotta-700: #914b31;
+
+  /* Agent state colours */
+  --color-listen: #2e8b57;
+  --color-think: #d97706;
+  --color-speak: #7c3aed;
+  --color-alert: #dc2626;
+
+  --shadow-card: 0 8px 32px -4px rgb(31 36 33 / 0.05), 0 4px 12px -2px rgb(63 107 79 / 0.04);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Voice orb and indicator animations */
+@keyframes orb-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.035); }
+}
+@keyframes orb-ripple {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+@keyframes orb-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes dot-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.55; }
+  40% { transform: translateY(-9px); opacity: 1; }
+}
+@keyframes wave {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(1); }
+}
+@keyframes caret-blink {
+  50% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

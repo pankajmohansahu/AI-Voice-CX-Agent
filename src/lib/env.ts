@@ -3,7 +3,7 @@
 
 export const env = {
   groqApiKey: process.env.GROQ_API_KEY ?? "",
-  llmModel: process.env.LLM_MODEL || "llama-3.3-70b-versatile",
+  llmModel: process.env.LLM_MODEL || "openai/gpt-oss-120b",
   deepgramApiKey: process.env.DEEPGRAM_API_KEY ?? "",
   sarvamApiKey: process.env.SARVAM_API_KEY ?? "",
   ttsModel: process.env.TTS_MODEL || "bulbul:v2",
