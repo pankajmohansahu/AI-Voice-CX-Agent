@@ -12,6 +12,7 @@ const STATUS_PILL: Record<OrderStatus, string> = {
   Shipped: "bg-[#e0ecff] text-[#1e4fa8]",
   "Out for Delivery": "bg-[#e0ecff] text-[#1e4fa8]",
   Delivered: "bg-[#e3f4ea] text-[#1f6b43]",
+  Cancelled: "bg-[#fde8e8] text-[#991b1b]",
 };
 
 // Helper panel so evaluators can test lookups and policies without external docs.

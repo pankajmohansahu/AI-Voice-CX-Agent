@@ -12,7 +12,9 @@ export function formatINR(amount: number): string {
 }
 
 export function toolCallLabel(name: string, args: Record<string, unknown>): string {
-  const values = Object.values(args).map((v) => JSON.stringify(v));
+  // order_id first so chips read naturally regardless of the model's argument order.
+  const keys = Object.keys(args).sort((a, b) => Number(b === "order_id") - Number(a === "order_id"));
+  const values = keys.map((k) => JSON.stringify(args[k]));
   return `${name}(${values.join(", ")})`;
 }
 

@@ -42,6 +42,25 @@ export type SummaryState =
   | { status: "ready"; data: CallSummary }
   | { status: "error"; message: string };
 
+// Conversation history in OpenAI chat format. Kept by the browser and sent with
+// every /api/chat request, because the serverless backend is stateless.
+export type ChatMessage =
+  | { role: "user"; content: string }
+  | {
+      role: "assistant";
+      content: string | null;
+      tool_calls?: { id: string; type: "function"; function: { name: string; arguments: string } }[];
+    }
+  | { role: "tool"; tool_call_id: string; content: string };
+
+// NDJSON events streamed from /api/chat, one per line.
+export type ChatStreamEvent =
+  | { type: "tool_call"; id: string; name: string; args: Record<string, unknown> }
+  | { type: "tool_result"; id: string; name: string; ok: boolean; display: string }
+  | { type: "text"; delta: string }
+  | { type: "done"; messages: ChatMessage[] }
+  | { type: "error"; message: string };
+
 // Everything the UI needs to render one moment of a call.
 export interface CallView {
   screen: "call" | "summary";
