@@ -1,6 +1,6 @@
 import { env } from "@/lib/env";
 import { sanitizeHistory } from "@/lib/history";
-import { llm, reasoningOptions } from "@/lib/llm";
+import { getLLM, reasoningOptions } from "@/lib/llm";
 import { buildSummary, emptyCallSummary, SUMMARY_SYSTEM_PROMPT, transcriptForSummary } from "@/lib/summary";
 
 // POST /api/summary — structured outcome for a finished call.
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const completion = await llm.chat.completions.create({
+    const completion = await getLLM().chat.completions.create({
       model: env.llmModel,
       messages: [
         { role: "system", content: SUMMARY_SYSTEM_PROMPT },
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       response_format: { type: "json_object" },
       temperature: 0.2,
       max_completion_tokens: 800,
-      ...reasoningOptions,
+      ...reasoningOptions(),
     });
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(raw);

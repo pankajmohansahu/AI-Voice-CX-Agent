@@ -1,7 +1,7 @@
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { env } from "@/lib/env";
 import { extractToolRecords, sanitizeHistory } from "@/lib/history";
-import { llm, reasoningOptions } from "@/lib/llm";
+import { getLLM, reasoningOptions } from "@/lib/llm";
 import { buildSystemPrompt } from "@/lib/prompt";
 import { executeTool, TOOL_DEFINITIONS, type ToolContext } from "@/lib/tools";
 import type { ChatMessage, ChatStreamEvent } from "@/lib/types";
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
       try {
         let finished = false;
         for (let round = 0; round < MAX_TOOL_ROUNDS && !finished; round++) {
-          const completion = await llm.chat.completions.create(
+          const completion = await getLLM().chat.completions.create(
             {
               model: env.llmModel,
               messages: [
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
               stream: true,
               temperature: 0.3,
               max_completion_tokens: 800,
-              ...reasoningOptions,
+              ...reasoningOptions(),
             },
             { signal: req.signal },
           );

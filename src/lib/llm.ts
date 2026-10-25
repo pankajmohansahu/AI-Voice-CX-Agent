@@ -3,12 +3,18 @@ import { env } from "./env";
 
 // Groq exposes an OpenAI-compatible API, so the official SDK works by changing the base URL.
 // Switching providers later is a config change, not a rewrite.
-export const llm = new OpenAI({
-  apiKey: env.groqApiKey,
-  baseURL: "https://api.groq.com/openai/v1",
-});
+let client: OpenAI | null = null;
+let clientKey = "";
+
+export function getLLM(): OpenAI {
+  if (!client || clientKey !== env.groqApiKey) {
+    clientKey = env.groqApiKey;
+    client = new OpenAI({ apiKey: clientKey, baseURL: "https://api.groq.com/openai/v1" });
+  }
+  return client;
+}
 
 // gpt-oss models are reasoning models; "low" keeps latency suitable for voice.
-export const reasoningOptions = env.llmModel.startsWith("openai/gpt-oss")
-  ? { reasoning_effort: "low" as const }
-  : {};
+export function reasoningOptions() {
+  return env.llmModel.startsWith("openai/gpt-oss") ? { reasoning_effort: "low" as const } : {};
+}
