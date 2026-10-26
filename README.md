@@ -7,7 +7,7 @@ producing a transcript plus a structured JSON summary when the call ends.
 
 ### 🔗 Live demo: **[ai-voice-cx-agent-iota.vercel.app](https://ai-voice-cx-agent-iota.vercel.app)**
 
-🎥 Demo video: _link to be added_
+### 🎥 Demo video: **[Watch on Google Drive](https://drive.google.com/file/d/1tcnSXN7nrJwYNK6vaOI5DXqXd8iKq1iu/view?usp=sharing)**
 
 > **Approach in brief:** A modular streaming pipeline — Deepgram (speech-to-text) → Groq LLM with
 > tool calling → Sarvam (Indian text-to-speech) — built as a single Next.js app on Vercel.
