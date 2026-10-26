@@ -67,6 +67,15 @@ export const TOOL_DEFINITIONS: ChatCompletionTool[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "end_call",
+      description:
+        "Hang up the call. Use when the customer says they are done or asks to end the call, together with a short goodbye.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
 ];
 
 export interface ToolOutcome {
@@ -244,6 +253,9 @@ export function executeTool(name: string, args: Record<string, unknown>, ctx: To
       return cancelOrder(args, ctx);
     case "escalate_to_human":
       return escalateToHuman(args);
+    case "end_call":
+      // The browser hangs up after Aria's goodbye has been spoken.
+      return { ok: true, display: "Call ending", result: { ended: true, instruction: "Say a brief goodbye." } };
     default:
       return { ok: false, display: "Unknown tool", result: { error: `Unknown tool ${name}` } };
   }

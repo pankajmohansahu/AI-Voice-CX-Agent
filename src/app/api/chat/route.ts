@@ -9,7 +9,8 @@ import type { ChatMessage, ChatStreamEvent } from "@/lib/types";
 const MAX_TOOL_ROUNDS = 5; // hard stop so a confused model can never loop forever
 
 const FALLBACK_REPLY = "Sorry, I didn't quite get that. Could you please say it again?";
-const ERROR_REPLY = "Sorry, I'm having a little trouble right now. Could you please try again in a moment?";
+const GOODBYE = "Thank you for calling Aura Skincare. Have a great day!";
+const ERROR_REPLY ="Sorry, I'm having a little trouble right now. Could you please try again in a moment?";
 
 // POST /api/chat — one conversational turn.
 // Body: { messages: ChatMessage[] } (full history, kept by the browser).
@@ -107,6 +108,16 @@ export async function POST(req: Request) {
             const outcome = executeTool(c.name, args, ctx);
             send({ type: "tool_result", id: c.id, name: c.name, ok: outcome.ok, display: outcome.display });
             newMessages.push({ role: "tool", tool_call_id: c.id, content: JSON.stringify(outcome.result) });
+          }
+
+          // Hanging up needs no further LLM round: use the goodbye already said, or a default one.
+          if (toolCalls.some((c) => c.name === "end_call")) {
+            if (!text.trim()) {
+              send({ type: "text", delta: GOODBYE });
+              newMessages.push({ role: "assistant", content: GOODBYE });
+            }
+            finished = true;
+            break;
           }
         }
 

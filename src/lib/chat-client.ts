@@ -42,6 +42,8 @@ export function toolActivityLabel(name: string, args: Record<string, unknown>): 
       return `Cancelling ${id}…`;
     case "escalate_to_human":
       return "Raising a ticket with our support team…";
+    case "end_call":
+      return "Ending the call…";
     default:
       return "Working on it…";
   }

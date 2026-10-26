@@ -75,6 +75,30 @@ const SCENARIOS = [
     expect: [/order (id|number)/i],
   },
   {
+    name: "Product range (no invented details)",
+    turns: ["Tell me about your products. What ingredients do you use?"],
+    tools: [],
+    forbiddenTools: ["get_order_details"],
+    expect: [/don['’]?t have|do not have|no (more )?(information|details)|not (sure|able)/i],
+    reject: [/turmeric|neem|almond|rose ?water|paraben|cruelty|sulfate|vegan|moisturi[sz]er|mask/i],
+  },
+  {
+    name: "Business model (no invented operations)",
+    turns: ["What is your business model? Do you sell in stores?"],
+    tools: [],
+    forbiddenTools: ["get_order_details"],
+    // Either the known fact (D2C) or an honest "don't have details"; never invented operations.
+    expect: [/direct|D2C|consumer|don['’]?t have|only have|no (information|details)/i],
+    reject: [/retail partner|manufactur|amazon|nykaa|outlet/i],
+  },
+  {
+    name: "Goodbye ends the call",
+    turns: ["Where is my order ORD-101?", "Okay that's all, thanks. Bye!"],
+    tools: ["end_call"],
+    expect: [/bye|great day|take care|thank/i],
+    reject: [/(good ?bye|great day)[^]*\1/i], // goodbye said only once
+  },
+  {
     name: "Shipping fee below 499",
     turns: ["Is shipping free on a 400 rupee order?"],
     tools: [],

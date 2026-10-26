@@ -7,7 +7,14 @@ export const BRAND = {
     "Aura Skincare is a premium organic Indian skincare brand focused on simple, effective skincare products made with thoughtfully selected ingredients.",
 };
 
-export const GREETING = `Hi! I'm ${BRAND.agentName} from ${BRAND.name}. How can I help you today?`;
+// The only products we have information about (from the order data). Prices are the order values.
+export const KNOWN_PRODUCTS = [
+  "Vitamin C Serum (30ml)",
+  "Hydrating Sunscreen SPF 50",
+  "Green Tea Face Wash + Toner",
+];
+
+export const GREETING =`Hi! I'm ${BRAND.agentName} from ${BRAND.name}. How can I help you today?`;
 
 export const POLICIES = [
   {

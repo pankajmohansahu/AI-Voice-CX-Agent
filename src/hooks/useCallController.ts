@@ -16,6 +16,7 @@ const CONNECTION_ERROR = "Sorry, I'm having trouble connecting right now. Could 
 // Spoken while a tool runs, so the customer isn't left in silence during the lookup.
 const TOOL_FILLER = "One moment, let me check that.";
 const BARGE_IN_MIN_WORDS = 2; // ignore single stray words / echo before interrupting Aria
+const MERGE_WINDOW_MS = 5000; // a follow-on fragment within this window (before Aria speaks) joins the last utterance
 
 // Owns the call lifecycle: voice I/O, conversation with the agent, transcript and summary.
 //
@@ -50,6 +51,11 @@ export function useCallController() {
   const playerRef = useRef<SpeechPlayer | null>(null);
   const voiceRef = useRef(false); // true while the mic + voice pipeline is live
   const utteranceAtRef = useRef<number | null>(null); // when the customer finished speaking
+  // Last customer utterance, so a fragment that follows a mid-sentence pause can be merged into it.
+  const lastUtteranceRef = useRef<{ text: string; at: number; entryId: string } | null>(null);
+  const bargeInAtRef = useRef<number | null>(null); // when the customer last talked over Aria
+  const endRequestedRef = useRef(false); // Aria called end_call: hang up after the goodbye
+  const endRef = useRef<() => void>(() => {});
 
   const setState = useCallback((next: CallState) => {
     stateRef.current = next;
@@ -138,6 +144,8 @@ export function useCallController() {
     setMuted(false);
     setInterim("");
     setSessionId(makeSessionId());
+    endRequestedRef.current = false;
+    lastUtteranceRef.current = null;
   }, [cancelCurrentTurn]);
 
   // One conversational turn: send the customer's message, stream Aria's reply and tool calls,
@@ -198,8 +206,9 @@ export function useCallController() {
               break;
             }
             case "tool_call":
+              if (event.name === "end_call") endRequestedRef.current = true;
               // Voice mode: if Aria hasn't said anything yet this turn, fill the lookup pause.
-              if (player && !turn.partial.trim() && !fillerSpoken) {
+              if (player && event.name !== "end_call" && !turn.partial.trim() && !fillerSpoken) {
                 fillerSpoken = true;
                 player.enqueue(speechTurn, TOOL_FILLER);
                 addEntry("agent", TOOL_FILLER);
@@ -241,7 +250,10 @@ export function useCallController() {
       setActivity(null);
       if (player) {
         splitter?.flush();
-        player.endTurn(speechTurn); // the player switches back to listening once everything is spoken
+        // The player switches back to listening (or hangs up after end_call) once everything is spoken.
+        player.endTurn(speechTurn);
+      } else if (endRequestedRef.current) {
+        setTimeout(() => endRef.current(), 1500); // text mode: leave the goodbye on screen briefly
       } else {
         setState("listening");
       }
@@ -251,11 +263,36 @@ export function useCallController() {
 
   const handleUtterance = useCallback(
     (text: string) => {
-      utteranceAtRef.current = performance.now();
-      addEntry("customer", text);
+      const now = performance.now();
+      utteranceAtRef.current = now;
+      const last = lastUtteranceRef.current;
+
+      // The customer paused mid-sentence and kept talking, either before Aria answered or by
+      // interrupting her reply to that fragment: treat both parts as one question.
+      const interruptedReply = bargeInAtRef.current !== null && last !== null && bargeInAtRef.current > last.at;
+      bargeInAtRef.current = null;
+      if (last && now - last.at < MERGE_WINDOW_MS && (stateRef.current === "thinking" || interruptedReply)) {
+        abortRef.current?.abort();
+        turnRef.current = null; // discard the half-finished reply entirely
+        const merged = `${last.text} ${text}`;
+        const userIndex = historyRef.current.findLastIndex((m) => m.role === "user" && m.content === last.text);
+        if (userIndex >= 0) historyRef.current = historyRef.current.slice(0, userIndex);
+        setEntries((prev) => {
+          const i = prev.findIndex((e) => e.id === last.entryId);
+          if (i < 0) return prev;
+          return [...prev.slice(0, i), { ...prev[i], text: merged } as TranscriptEntry];
+        });
+        lastUtteranceRef.current = { text: merged, at: now, entryId: last.entryId };
+        void askAgent(merged);
+        return;
+      }
+
+      const entryId = crypto.randomUUID();
+      lastUtteranceRef.current = { text, at: now, entryId };
+      setEntries((prev) => [...prev, { id: entryId, kind: "message", role: "customer", text, at: elapsed() }]);
       void askAgent(text);
     },
-    [addEntry, askAgent],
+    [askAgent],
   );
 
   const getPlayer = useCallback(() => {
@@ -270,6 +307,10 @@ export function useCallController() {
         setState("speaking");
       };
       player.onIdle = () => {
+        if (voiceRef.current && endRequestedRef.current) {
+          endRef.current(); // goodbye has been spoken: hang up
+          return;
+        }
         if (voiceRef.current && (stateRef.current === "speaking" || stateRef.current === "thinking")) {
           setState("listening");
         }
@@ -293,6 +334,7 @@ export function useCallController() {
         // Barge-in: the customer starts talking over Aria → stop speaking and listen.
         if (callIdRef.current !== callId || stateRef.current !== "speaking") return;
         if (text.split(/\s+/).filter(Boolean).length < BARGE_IN_MIN_WORDS) return;
+        bargeInAtRef.current = performance.now();
         player.stop();
         setState("listening");
       },
@@ -363,6 +405,11 @@ export function useCallController() {
     void loadSummary();
   }, [cancelCurrentTurn, loadSummary, setState, stopVoice]);
 
+  // Lets the player / timers hang up after Aria's goodbye without depending on `end` directly.
+  useEffect(() => {
+    endRef.current = end;
+  }, [end]);
+
   // Typed messages work with or without a voice call; during a call Aria also speaks the reply.
   const sendText = useCallback(
     (text: string) => {
@@ -370,6 +417,7 @@ export function useCallController() {
       if (!trimmed) return;
       if (!inCall) beginSession(); // typing without an active call starts a text session
       utteranceAtRef.current = voiceRef.current ? performance.now() : null;
+      lastUtteranceRef.current = null; // typed messages are complete; never merge speech into them
       setEntries((prev) => [
         ...prev,
         { id: crypto.randomUUID(), kind: "message", role: "customer", text: trimmed, at: elapsed() },
